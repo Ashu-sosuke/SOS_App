@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -24,39 +25,10 @@ fun Navigation() {
             LogInScreen(rootNavController)
         }
 
-        composable(Screen.HomeScreen.route) {
-
-            val bottomNavController = rememberNavController()
-
-            Scaffold(
-                bottomBar = {
-                    BottomNavBar(bottomNavController)   // ✅ HERE
-                }
-            ) { paddingValues ->
-
-                NavHost(
-                    navController = bottomNavController,
-                    startDestination = BottomNavRoute.Home.route,
-                    modifier = Modifier.padding(paddingValues)
-                ) {
-
-                    composable(BottomNavRoute.Home.route) {
-                        HomeScreen()
-                    }
-
-                    composable(BottomNavRoute.Map.route) {
-                        MapScreen()
-                    }
-
-                    composable(BottomNavRoute.Contacts.route) {
-                        TrustedContactsScreen()
-                    }
-
-                    composable(BottomNavRoute.Settings.route) {
-                        SettingsScreen()
-                    }
-                }
-            }
+        composable(Screen.Main.route) {
+            MainScreen(
+                rootNavController = rootNavController
+            )
         }
     }
 }

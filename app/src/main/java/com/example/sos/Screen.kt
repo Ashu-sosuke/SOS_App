@@ -1,13 +1,13 @@
 package com.example.sos
 
 sealed class Screen(val route: String) {
+
     object Login : Screen("login")
-    object Register : Screen("register")
-    object ForgotPassword : Screen("forgot_password")
+    object Main : Screen("main")
+
     object HomeScreen : Screen("home")
-    object Profile : Screen("profile")
     object Contacts : Screen("contacts")
-
+    object MapScreen : Screen("map")
+    object Setting : Screen("settings")
 }
-
 

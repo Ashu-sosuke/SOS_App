@@ -106,7 +106,12 @@ fun LogInScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(24.dp))
 
                 GuestSOSCard(
-                    onEmergencyClicked = { navController.navigate(Screen.HomeScreen.route)}
+                    onEmergencyClicked = {
+                        navController.navigate(Screen.Main.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
+                    }
+
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
