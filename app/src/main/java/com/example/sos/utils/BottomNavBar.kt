@@ -50,9 +50,9 @@ fun BottomNavBar(
         BottomNavItem(
             icon = painterResource(R.drawable.baseline_location_pin_24),
             label = "Map",
-            selected = currentRoute == Screen.MapScreen.route
+            selected = currentRoute == Screen.SafetyModeScreen.route
         ) {
-            navigateTo(navController, Screen.MapScreen.route)
+            navigateTo(navController, Screen.SafetyModeScreen.route)
         }
 
         BottomNavItem(
@@ -66,9 +66,9 @@ fun BottomNavBar(
         BottomNavItem(
             icon = painterResource(R.drawable.baseline_settings_24),
             label = "Settings",
-            selected = currentRoute == Screen.Setting.route
+            selected = currentRoute == Screen.SafetySettingsScreen.route
         ) {
-            navigateTo(navController, Screen.Setting.route)
+            navigateTo(navController, Screen.SafetySettingsScreen.route)
         }
     }
 }

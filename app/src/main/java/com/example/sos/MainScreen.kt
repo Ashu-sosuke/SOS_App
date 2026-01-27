@@ -32,15 +32,21 @@ fun MainScreen(rootNavController: NavHostController) {
             }
 
             composable(Screen.Contacts.route) {
-                TrustedContactsScreen()
+                TrustedContactsScreen(onBack = {
+                    bottomNavController.popBackStack()
+                })
             }
 
-            composable(Screen.MapScreen.route) {
-                MapScreen()
+            composable(Screen.SafetyModeScreen.route) {
+                SafetyModeScreen(onBack = {
+                    bottomNavController.popBackStack()
+                })
             }
 
-            composable(Screen.Setting.route) {
-                SettingsScreen()
+            composable(Screen.SafetySettingsScreen.route) {
+                SafetySettingsScreen(onBack = {
+                    bottomNavController.popBackStack()
+                })
             }
         }
     }
