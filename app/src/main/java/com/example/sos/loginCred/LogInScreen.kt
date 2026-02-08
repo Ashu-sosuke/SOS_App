@@ -1,5 +1,9 @@
 package com.example.sos.loginCred
 
+import android.app.Activity
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -29,128 +34,186 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.ActivityNavigatorExtras
 import androidx.navigation.NavController
 import com.example.sos.R
+import com.example.sos.Routes
 import com.example.sos.Screen
+import com.google.android.gms.auth.api.signin.GoogleSignIn
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LogInScreen(navController: NavController) {
+fun LogInScreen(navController: NavController,
+                authViewModel: AuthViewModel = viewModel()) {
+
+    val authViewModel: AuthViewModel = viewModel()
+    val context = LocalContext.current
+    val activity = context as Activity
+
+    val googleClient = remember { getGoogleClient(context) }
+
+    val googleLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        val account = task.result
+        authViewModel.googleLogin(account.idToken!!){
+            navController.navigate(Screen.Main.route){
+                popUpTo(Screen.Login.route){inclusive = true}
+            }
+        }
+    }
+
+
+    var showOtpDialog by remember { mutableStateOf(false) }
 
     var showCountryPicker by remember { mutableStateOf(false) }
     var selectedCountry by remember { mutableStateOf(Country("India", "IN", "+91")) }
 
 
-        Box(
-            modifier = Modifier
+    Box(
+        modifier = Modifier
 
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color(0xFF102543),
-                            Color(0xFF020205)
-                        )
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color(0xFF102543),
+                        Color(0xFF020205)
                     )
                 )
-        ) {
+            )
+    ) {
 
-            Column(
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(
                 modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    IconButton(onClick = {  }){
-                        Icon(
-                            painter = painterResource(R.drawable.icons8_account_50),
-                            null,
-                            modifier = Modifier.size(20.dp)
-                        )
+                IconButton(onClick = {  }){
+                    Icon(
+                        painter = painterResource(R.drawable.icons8_account_50),
+                        null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Text(
+                    text = "Help",
+                    color = Color.Blue,
+                    modifier = Modifier.clickable{}
+                )
+            }
+
+            Icon(
+                painterResource(id = R.drawable.be0787137b8697f0bc92a7b95509e14c),
+                null,
+                modifier = Modifier.size(150.dp),
+                tint = Color.Unspecified
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Stay Safe, Everywhere.",
+                color = Color.White,
+                style = MaterialTheme.typography.headlineLarge
+            )
+
+            Text(
+                text = "AI-powered protection at your fingertips.",
+                color = Color.White.copy(alpha = 0.7f),
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            GuestSOSCard(
+                onEmergencyClicked = {
+                    authViewModel.guestLogin {
+                        navController.navigate(Routes.HOME){
+                            popUpTo(Routes.LOGIN){inclusive = true}
+                        }
                     }
-                    Text(
-                        text = "Help",
-                        color = Color.Blue,
-                        modifier = Modifier.clickable{}
+                }
+
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            PhoneLoginSection(
+                selectedCountry = selectedCountry,
+                onCountryClick = { showCountryPicker = true },
+                onSendCode = { phone, country ->
+                    val fullPhone = "${country.dialCode}$phone"
+
+                    authViewModel.sendOtp(
+                        phone = fullPhone,
+                        activity = activity,
+                        onCodeSent = {
+                            showOtpDialog = true
+                        },
+                        onError = { errorMsg ->
+                            Toast.makeText(context, errorMsg, Toast.LENGTH_SHORT).show()
+                        }
                     )
                 }
 
-                Icon(
-                    painterResource(id = R.drawable.be0787137b8697f0bc92a7b95509e14c),
-                    null,
-                    modifier = Modifier.size(150.dp),
-                    tint = Color.Unspecified
-                )
-                Spacer(modifier = Modifier.height(24.dp))
+            )
 
-                Text(
-                    text = "Stay Safe, Everywhere.",
-                    color = Color.White,
-                    style = MaterialTheme.typography.headlineLarge
-                )
+            Spacer(modifier = Modifier.height(48.dp))
 
-                Text(
-                    text = "AI-powered protection at your fingertips.",
-                    color = Color.White.copy(alpha = 0.7f),
-                    style = MaterialTheme.typography.titleMedium
-                )
+            GoogleLogIn(
+                onGoogleClick = {googleLauncher.launch(googleClient.signInIntent)},
+            )
 
-                Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-                GuestSOSCard(
-                    onEmergencyClicked = {
+            TermsAndPrivacyText(
+                onTermsClick = { /* open terms */ },
+                onPrivacyClick = { /* open privacy */ }
+            )
+
+        }
+
+        if (showCountryPicker) {
+            CountryPickerBottomSheet(
+                countries = countries,
+                onCountrySelected = {
+                    selectedCountry = it
+                    showCountryPicker = false
+                },
+                onDismiss = { showCountryPicker = false }
+            )
+        }
+    }
+    if (showOtpDialog) {
+        OtpDialog(
+            onDismiss = { showOtpDialog = false },
+            onVerify = { otp ->
+                authViewModel.verifyOtp(
+                    otp = otp,
+                    onSuccess = {
                         navController.navigate(Screen.Main.route) {
                             popUpTo(Screen.Login.route) { inclusive = true }
                         }
-                    }
-
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                PhoneLoginSection(
-                    selectedCountry = selectedCountry,
-                    onCountryClick = { showCountryPicker = true },
-                    onSendCode = { phone, country ->
-                        val fullNumber = "${country.dialCode}$phone"
-                        // Send OTP logic
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(48.dp))
-
-                GoogleLogIn(
-                    onGoogleClick = {},
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                TermsAndPrivacyText(
-                    onTermsClick = { /* open terms */ },
-                    onPrivacyClick = { /* open privacy */ }
-                )
-
-            }
-
-            if (showCountryPicker) {
-                CountryPickerBottomSheet(
-                    countries = countries,
-                    onCountrySelected = {
-                        selectedCountry = it
-                        showCountryPicker = false
                     },
-                    onDismiss = { showCountryPicker = false }
+                    onError = {
+                        Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+                    }
                 )
             }
-        }
+        )
+    }
 }
 
 @Composable
@@ -241,21 +304,13 @@ fun PhoneLoginSection(
     onSendCode: (String, Country) -> Unit
 ) {
     var phone by remember { mutableStateOf("") }
-    val enabled = phone.length >= 6
+    val enabled = phone.length >= 10
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp)
-    ) {
+    Column(modifier = Modifier.padding(24.dp)) {
 
-        Text(
-            text = "Mobile Number",
-            color = Color.White.copy(alpha = 0.8f),
-            style = MaterialTheme.typography.labelMedium
-        )
+        Text("Mobile Number", color = Color.White)
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(Modifier.height(8.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
 
@@ -263,29 +318,16 @@ fun PhoneLoginSection(
                 modifier = Modifier
                     .clickable { onCountryClick() }
                     .background(Color(0xFF1C2432), RoundedCornerShape(10.dp))
-                    .padding(horizontal = 12.dp, vertical = 14.dp)
+                    .padding(12.dp)
             ) {
-                Row {
-                    Text(selectedCountry.iso, color = Color.White, fontSize = 14.sp)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        selectedCountry.dialCode,
-                        color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 12.sp
-                    )
-                }
+                Text("${selectedCountry.iso} ${selectedCountry.dialCode}", color = Color.White)
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(Modifier.width(8.dp))
 
             TextField(
                 value = phone,
-                onValueChange = {
-                    phone = it.filter { ch -> ch.isDigit() }
-                },
-                placeholder = {
-                    Text("(555) 000-0000", color = Color.White.copy(alpha = 0.4f))
-                },
+                onValueChange = { phone = it.filter(Char::isDigit) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 singleLine = true,
                 modifier = Modifier.weight(1f),
@@ -301,30 +343,67 @@ fun PhoneLoginSection(
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(Modifier.height(16.dp))
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
-                    color = if (enabled) Color(0xFF1E5AE8)
+                    if (enabled) Color(0xFF1E5AE8)
                     else Color(0xFF1E5AE8).copy(alpha = 0.4f),
-                    shape = RoundedCornerShape(50.dp)
+                    RoundedCornerShape(50.dp)
                 )
-                .clickable(enabled = enabled) {
+                .clickable(enabled) {
                     onSendCode(phone, selectedCountry)
                 }
-                .padding(vertical = 14.dp),
+                .padding(14.dp),
             contentAlignment = Alignment.Center
         ) {
-            Row {
-                Text("Send Code", color = Color.White)
-                Spacer(modifier = Modifier.width(6.dp))
-                Icon(Icons.Default.ArrowForward, null, tint = Color.White)
-            }
+            Text("Send Code", color = Color.White)
         }
     }
 }
+
+
+@Composable
+fun OtpDialog(
+    onDismiss: () -> Unit,
+    onVerify: (String) -> Unit
+) {
+    var otp by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Enter OTP") },
+        text = {
+            OutlinedTextField(
+                value = otp,
+                onValueChange = {
+                    otp = it.filter(Char::isDigit)
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number
+                ),
+                singleLine = true,
+                placeholder = { Text("6 digit code") }
+            )
+        },
+        confirmButton = {
+            Button(
+                enabled = otp.length == 6,
+                onClick = { onVerify(otp) }
+            ) {
+                Text("Verify")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
 
 @Composable
 fun GoogleLogIn(

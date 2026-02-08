@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "319189704439",
+    "project_id": "sos-saftey",
+    "storage_bucket": "sos-saftey.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:319189704439:android:de94924742680a72747df2",
+        "android_client_info": {
+          "package_name": "com.example.sos"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB2OST37UwOpxW2Q5tVZALBitED23OB_kA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

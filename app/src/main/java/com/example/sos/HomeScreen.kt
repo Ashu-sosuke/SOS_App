@@ -34,9 +34,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.rememberNavController
 import com.example.sos.utils.BottomNavBar
+import androidx.compose.runtime.SideEffect
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
+
 
 @Composable
 fun HomeScreen() {
+
+    val systemUiController = rememberSystemUiController()
+
+    SideEffect {
+        systemUiController.setStatusBarColor(
+            color = Color.Transparent,
+            darkIcons = false
+        )
+    }
 
     val backgroundGradient = Brush.verticalGradient(
         colors = listOf(
@@ -55,26 +67,19 @@ fun HomeScreen() {
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
             Spacer(modifier = Modifier.height(24.dp))
             TopBar()
-
             Spacer(modifier = Modifier.height(24.dp))
             StatusChip()
-
             Spacer(modifier = Modifier.height(40.dp))
             TitleSection()
-
             Spacer(modifier = Modifier.height(40.dp))
             SosButton()
-
             Spacer(modifier = Modifier.height(32.dp))
             AIVoiceGuardCard()
         }
     }
 }
-
-
 
 
 @Composable

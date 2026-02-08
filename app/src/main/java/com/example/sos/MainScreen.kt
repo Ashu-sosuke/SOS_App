@@ -4,17 +4,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.sos.loginCred.AuthViewModel
 import com.example.sos.utils.BottomNavBar
 
 @Composable
 fun MainScreen(rootNavController: NavHostController) {
 
     val bottomNavController = rememberNavController()
-
+    val authViewModel: AuthViewModel = viewModel()
     Scaffold(
         bottomBar = {
             BottomNavBar(navController = bottomNavController)
@@ -46,7 +48,10 @@ fun MainScreen(rootNavController: NavHostController) {
             composable(Screen.SafetySettingsScreen.route) {
                 SafetySettingsScreen(onBack = {
                     bottomNavController.popBackStack()
-                })
+                },
+                    navController = rootNavController,
+                    authViewModel
+                )
             }
         }
     }

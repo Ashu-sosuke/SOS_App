@@ -8,27 +8,33 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.sos.loginCred.AuthViewModel
 import com.example.sos.loginCred.LogInScreen
 import com.example.sos.utils.BottomNavBar
 
 @Composable
-fun Navigation() {
+fun Navigation(
+    navController: NavHostController,
+    authViewModel: AuthViewModel
+) {
 
-    val rootNavController = rememberNavController()
 
     NavHost(
-        navController = rootNavController,
-        startDestination = Screen.Login.route
+        navController = navController,
+        startDestination = Routes.SPLASH
     ) {
 
-        composable(Screen.Login.route) {
-            LogInScreen(rootNavController)
+        composable(Routes.SPLASH) {
+            SplashScreen(navController, authViewModel)
         }
 
-        composable(Screen.Main.route) {
-            MainScreen(
-                rootNavController = rootNavController
-            )
+        composable(Routes.LOGIN) {
+            LogInScreen(navController)
         }
+
+        composable(Routes.HOME) {
+            MainScreen(rootNavController = navController)
+        }
+
     }
 }
