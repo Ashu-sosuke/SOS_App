@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("com.google.gms.google-services")
+    alias(libs.plugins.ksp)
+
 }
 
 android {
@@ -43,6 +45,21 @@ android {
 }
 
 dependencies {
+
+    //Map
+    implementation("com.google.maps.android:maps-compose:2.11.4")
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.android.gms:play-services-location:21.0.1")
+
+    //Local DB
+    implementation ("androidx.room:room-runtime:2.6.1")
+    implementation(libs.play.services.location)
+    ksp("androidx.room:room-compiler:2.6.1")
+    implementation ("androidx.room:room-ktx:2.6.1")
+    implementation ("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+
+    //Firebase
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")

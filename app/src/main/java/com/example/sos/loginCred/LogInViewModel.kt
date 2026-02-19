@@ -2,6 +2,7 @@ package com.example.sos.loginCred
 
 import android.app.Activity
 import android.net.Uri
+import android.util.Log
 import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -82,14 +83,12 @@ class AuthViewModel(
 
     fun verifyOtp(
         otp: String,
-        onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
         val id = verificationId ?: return onError("OTP not sent")
 
         val credential = PhoneAuthProvider.getCredential(id, otp)
         auth.signInWithCredential(credential)
-            .addOnSuccessListener { onSuccess() }
             .addOnFailureListener { onError(it.message ?: "Invalid OTP") }
     }
 
@@ -105,11 +104,11 @@ class AuthViewModel(
 
     /* ---------------- GOOGLE ---------------- */
 
-    fun googleLogin(idToken: String, onSuccess: () -> Unit) {
+    fun googleLogin(idToken: String) {
         loading = true
         repo.firebaseAuthWithGoogle(idToken) { success, msg ->
             loading = false
-            if (success) onSuccess()
+            if (success)
             else error = msg
         }
     }
@@ -117,18 +116,30 @@ class AuthViewModel(
     /* ---------------- GUEST ---------------- */
 
     fun guestLogin(onSuccess: () -> Unit) {
-        auth.signInAnonymously().addOnSuccessListener {
-            val uid = it.user!!.uid
-            val guestProfile = UserData(isGuest = true)
 
-            db.collection("users").document(uid)
-                .set(guestProfile)
-                .addOnSuccessListener {
-                    profile = guestProfile
-                    onSuccess()
-                }
-        }
+        auth.signInAnonymously()
+            .addOnSuccessListener { result ->
+
+                val uid = result.user?.uid ?: return@addOnSuccessListener
+
+                val guestProfile = UserData(isGuest = true)
+
+                db.collection("users")
+                    .document(uid)
+                    .set(guestProfile)
+                    .addOnSuccessListener {
+                        profile = guestProfile
+                        onSuccess()
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("GUEST_LOGIN", "Firestore save failed", e)
+                    }
+            }
+            .addOnFailureListener { e ->
+                Log.e("GUEST_LOGIN", "Anonymous auth failed", e)
+            }
     }
+
 
     fun isUserLoggedIn(): Boolean = auth.currentUser != null
 
@@ -204,6 +215,16 @@ class AuthViewModel(
                 error = it.message
             }
     }
+
+    private val _isLoggedIn = mutableStateOf(false)
+    val isLoggedIn: State<Boolean> = _isLoggedIn
+
+    init {
+        auth.addAuthStateListener {
+            _isLoggedIn.value = it.currentUser != null
+        }
+    }
+
 
     fun clearProfileSavedFlag() {
         profileSaved = false

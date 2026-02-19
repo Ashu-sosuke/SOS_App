@@ -1,6 +1,10 @@
 package com.example.sos
 
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.scrollable
@@ -14,19 +18,68 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.sos.location.LiveLocationMap
+import com.example.sos.location.SafetyModeViewModel
+
 
 @Composable
-fun SafetyModeScreen(onBack: () -> Unit) {
+fun SafetyModeScreen(
+    onBack: () -> Unit,
+    viewModel: SafetyModeViewModel = viewModel()
+) {
     val background = Color(0xFF0B1220)
     val card = Color(0xFF151E30)
     val primaryBlue = Color(0xFF1F5EFF)
+    val location by viewModel.location.collectAsState()
+    val context = LocalContext.current
+    val history by viewModel.locationHistory.collectAsState()
+
+
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestMultiplePermissions()
+        ) { permissions ->
+
+            val fineGranted =
+                permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+
+            if (fineGranted) {
+                viewModel.startSOSService()
+            }
+        }
+
+    LaunchedEffect(Unit) {
+
+        val fineLocationGranted =
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+
+        if (fineLocationGranted) {
+            viewModel.startSOSService()
+        } else {
+            permissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -102,23 +155,21 @@ fun SafetyModeScreen(onBack: () -> Unit) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(160.dp)
-                .background(Color(0xFFB5B8BE), RoundedCornerShape(16.dp)),
-            contentAlignment = Alignment.Center
+                .height(200.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(primaryBlue, CircleShape),
-                contentAlignment = Alignment.Center
+
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxSize()
             ) {
-                Icon(
-                    imageVector = Icons.Default.LocationOn,
-                    contentDescription = null,
-                    tint = Color.White
+                LiveLocationMap(
+                    latitude = location?.latitude,
+                    longitude = location?.longitude,
+                    history = history
                 )
             }
 
+            // Live Badge
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -133,6 +184,8 @@ fun SafetyModeScreen(onBack: () -> Unit) {
                 )
             }
         }
+
+
 
         Spacer(Modifier.height(24.dp))
 
@@ -169,7 +222,9 @@ fun SafetyModeScreen(onBack: () -> Unit) {
 
         // Buttons
         Button(
-            onClick = {},
+            onClick = {
+                viewModel.stopSOSService()
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),

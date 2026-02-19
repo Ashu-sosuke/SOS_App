@@ -47,11 +47,11 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 fun LogInScreen(navController: NavController,
                 authViewModel: AuthViewModel = viewModel()) {
 
-    val authViewModel: AuthViewModel = viewModel()
     val context = LocalContext.current
     val activity = context as Activity
 
     val googleClient = remember { getGoogleClient(context) }
+    val isLoggedIn by authViewModel.isLoggedIn
 
     val googleLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -59,11 +59,7 @@ fun LogInScreen(navController: NavController,
         result ->
         val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
         val account = task.result
-        authViewModel.googleLogin(account.idToken!!){
-            navController.navigate(Screen.Main.route){
-                popUpTo(Screen.Login.route){inclusive = true}
-            }
-        }
+        authViewModel.googleLogin(account.idToken!!)
     }
 
 
@@ -71,6 +67,15 @@ fun LogInScreen(navController: NavController,
 
     var showCountryPicker by remember { mutableStateOf(false) }
     var selectedCountry by remember { mutableStateOf(Country("India", "IN", "+91")) }
+
+
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn) {
+            navController.navigate(Routes.HOME) {
+                popUpTo(Routes.LOGIN) { inclusive = true }
+            }
+        }
+    }
 
 
     Box(
@@ -139,11 +144,7 @@ fun LogInScreen(navController: NavController,
 
             GuestSOSCard(
                 onEmergencyClicked = {
-                    authViewModel.guestLogin {
-                        navController.navigate(Routes.HOME){
-                            popUpTo(Routes.LOGIN){inclusive = true}
-                        }
-                    }
+                    authViewModel.guestLogin { }
                 }
 
             )
@@ -202,11 +203,6 @@ fun LogInScreen(navController: NavController,
             onVerify = { otp ->
                 authViewModel.verifyOtp(
                     otp = otp,
-                    onSuccess = {
-                        navController.navigate(Screen.Main.route) {
-                            popUpTo(Screen.Login.route) { inclusive = true }
-                        }
-                    },
                     onError = {
                         Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
                     }

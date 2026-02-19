@@ -29,11 +29,11 @@ fun Navigation(
         }
 
         composable(Routes.LOGIN) {
-            LogInScreen(navController)
+            LogInScreen(navController, authViewModel)
         }
 
         composable(Routes.HOME) {
-            MainScreen(rootNavController = navController)
+            MainScreen(rootNavController = navController, authViewModel)
         }
 
     }

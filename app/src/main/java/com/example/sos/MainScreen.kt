@@ -13,10 +13,9 @@ import com.example.sos.loginCred.AuthViewModel
 import com.example.sos.utils.BottomNavBar
 
 @Composable
-fun MainScreen(rootNavController: NavHostController) {
+fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewModel) {
 
     val bottomNavController = rememberNavController()
-    val authViewModel: AuthViewModel = viewModel()
     Scaffold(
         bottomBar = {
             BottomNavBar(navController = bottomNavController)
