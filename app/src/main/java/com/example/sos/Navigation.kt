@@ -10,6 +10,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.sos.loginCred.AuthViewModel
 import com.example.sos.loginCred.LogInScreen
+import com.example.sos.loginCred.RegisterScreen
 import com.example.sos.utils.BottomNavBar
 
 @Composable
@@ -36,5 +37,9 @@ fun Navigation(
             MainScreen(rootNavController = navController, authViewModel)
         }
 
+        composable("${Routes.REGISTER}/{phone}") { backStackEntry ->
+            val phone = backStackEntry.arguments?.getString("phone") ?: ""
+            RegisterScreen(phone, navController, authViewModel)
+        }
     }
 }

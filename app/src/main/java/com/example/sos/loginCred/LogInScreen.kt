@@ -51,15 +51,37 @@ fun LogInScreen(navController: NavController,
     val activity = context as Activity
 
     val googleClient = remember { getGoogleClient(context) }
-    val isLoggedIn by authViewModel.isLoggedIn
+    val isLoggedIn = authViewModel.isLoggedIn()
 
     val googleLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
-    ) {
-        result ->
+    ) { result ->
+
         val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-        val account = task.result
-        authViewModel.googleLogin(account.idToken!!)
+
+        if (task.isSuccessful) {
+
+            val account = task.result
+
+            val idToken = account.idToken ?: return@rememberLauncherForActivityResult
+            val name = account.displayName ?: ""
+            val email = account.email ?: ""
+
+            authViewModel.googleLogin(
+                idToken = idToken,
+                name = name,
+                email = email
+            ) { success ->
+
+                if (success) {
+                    navController.navigate(Routes.PERMISSION) {
+                        popUpTo(Routes.LOGIN) { inclusive = true }
+                    }
+                } else {
+                    Toast.makeText(context, "Google Login Failed", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
 
@@ -121,7 +143,7 @@ fun LogInScreen(navController: NavController,
             }
 
             Icon(
-                painterResource(id = R.drawable.be0787137b8697f0bc92a7b95509e14c),
+                painterResource(id = R.drawable.chatgpt_image_feb_27__2026__11_54_19_am),
                 null,
                 modifier = Modifier.size(150.dp),
                 tint = Color.Unspecified
@@ -142,12 +164,6 @@ fun LogInScreen(navController: NavController,
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            GuestSOSCard(
-                onEmergencyClicked = {
-                    authViewModel.guestLogin { }
-                }
-
-            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -203,6 +219,16 @@ fun LogInScreen(navController: NavController,
             onVerify = { otp ->
                 authViewModel.verifyOtp(
                     otp = otp,
+                    onNewUser = { phone ->
+                        showOtpDialog = false
+                        navController.navigate("${Routes.REGISTER}/$phone")
+                    },
+                    onExistingUser = {
+                        showOtpDialog = false
+                        navController.navigate(Routes.PERMISSION) {
+                            popUpTo(Routes.LOGIN) { inclusive = true }
+                        }
+                    },
                     onError = {
                         Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
                     }

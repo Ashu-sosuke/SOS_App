@@ -2,54 +2,93 @@ package com.example.sos.loginCred
 
 import android.app.Activity
 import android.net.Uri
-import android.util.Log
 import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.*
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.SetOptions
 import com.google.firebase.storage.FirebaseStorage
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
-class AuthViewModel(
-    private val repo: AuthRepo = AuthRepo()
-) : ViewModel() {
 
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
-    private val db = FirebaseFirestore.getInstance()
-    private val storage = FirebaseStorage.getInstance()
+class AuthViewModel : ViewModel() {
 
-    var profileSaved by mutableStateOf(false)
-        private set
 
     var profile by mutableStateOf(UserData())
         private set
 
+    var profileSaved by mutableStateOf(false)
+        private set
+
+    var isLoading by mutableStateOf(false)
+        private set
+
+    private val auth = FirebaseAuth.getInstance()
+    private val db = FirebaseFirestore.getInstance()
+
+    private val storage = FirebaseStorage.getInstance()
+
     var verificationId by mutableStateOf<String?>(null)
-        private set
+    var isNewUser by mutableStateOf(false)
+    var phoneNumber by mutableStateOf("")
 
-    var timer by mutableStateOf(60)
-        private set
+    private fun updateFirestore(
+        uid: String,
+        userData: UserData,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        isLoading = true
 
-    var loading by mutableStateOf(false)
-        private set
+        db.collection("users")
+            .document(uid)
+            .set(userData)
+            .addOnSuccessListener {
+                profile = userData
+                profileSaved = true
+                onSuccess()
+            }
+            .addOnFailureListener { e ->
+                onError(e.message ?: "Failed to update profile")
+            }
+        }
 
-    var error by mutableStateOf<String?>(null)
-        private set
+    fun loadUserProfile(onError: (String) -> Unit = {}) {
 
-    /* ---------------- OTP ---------------- */
+        val user = auth.currentUser ?: return
 
+        val uid = auth.currentUser?.uid ?: return
+
+        db.collection("users")
+            .document(uid)
+            .get()
+            .addOnSuccessListener { doc ->
+
+                if (doc.exists()) {
+                    profile = UserData(
+                        name = doc.getString("name") ?: "User",
+                        phone = doc.getString("phone")
+                            ?: user.phoneNumber,
+                        email = doc.getString("email")
+                            ?: user.email,
+                        photoUrl = doc.getString("photoUrl")
+                    )
+                } else {
+                    onError("Profile not found")
+                }
+            }
+            .addOnFailureListener {
+                onError(it.message ?: "Failed to load profile")
+            }
+    }
     fun sendOtp(
         phone: String,
         activity: Activity,
         onCodeSent: () -> Unit,
         onError: (String) -> Unit
     ) {
-        loading = true
+
+        phoneNumber = phone
 
         val options = PhoneAuthOptions.newBuilder(auth)
             .setPhoneNumber(phone)
@@ -59,20 +98,25 @@ class AuthViewModel(
 
                 override fun onVerificationCompleted(credential: PhoneAuthCredential) {
                     auth.signInWithCredential(credential)
+                        .addOnFailureListener { e ->
+                            val message = when (e) {
+                                is FirebaseAuthInvalidCredentialsException -> "Invalid OTP"
+                                is FirebaseAuthInvalidUserException -> "User disabled"
+                                else -> e.message ?: "Verification failed"
+                            }
+                            onError(message)
+                        }
                 }
 
                 override fun onVerificationFailed(e: FirebaseException) {
-                    loading = false
-                    onError(e.message ?: "OTP verification failed")
+                    onError(e.message ?: "OTP failed")
                 }
 
                 override fun onCodeSent(
                     id: String,
                     token: PhoneAuthProvider.ForceResendingToken
                 ) {
-                    loading = false
                     verificationId = id
-                    startTimer()
                     onCodeSent()
                 }
             })
@@ -83,151 +127,200 @@ class AuthViewModel(
 
     fun verifyOtp(
         otp: String,
+        onNewUser: (String) -> Unit,
+        onExistingUser: () -> Unit,
         onError: (String) -> Unit
     ) {
+
         val id = verificationId ?: return onError("OTP not sent")
 
-        val credential = PhoneAuthProvider.getCredential(id, otp)
-        auth.signInWithCredential(credential)
-            .addOnFailureListener { onError(it.message ?: "Invalid OTP") }
-    }
+        val credential = PhoneAuthProvider.getCredential(
+            verificationId ?: return onError("Verification failed"),
+            otp
+        )
 
-    private fun startTimer() {
-        timer = 60
-        viewModelScope.launch {
-            while (timer > 0) {
-                delay(1000)
-                timer--
+        auth.signInWithCredential(credential)
+            .addOnSuccessListener { result ->
+
+                isNewUser = result.additionalUserInfo?.isNewUser == true
+
+                if (isNewUser) {
+                    onNewUser(phoneNumber)
+                } else {
+                    onExistingUser()
+                }
             }
-        }
+            .addOnFailureListener {
+                onError(it.message ?: "Invalid OTP")
+            }
     }
 
     /* ---------------- GOOGLE ---------------- */
 
-    fun googleLogin(idToken: String) {
-        loading = true
-        repo.firebaseAuthWithGoogle(idToken) { success, msg ->
-            loading = false
-            if (success)
-            else error = msg
-        }
-    }
+    fun googleLogin(
+        idToken: String,
+        name: String,
+        email: String,
+        onComplete: (Boolean) -> Unit
+    ) {
 
-    /* ---------------- GUEST ---------------- */
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
 
-    fun guestLogin(onSuccess: () -> Unit) {
-
-        auth.signInAnonymously()
+        auth.signInWithCredential(credential)
             .addOnSuccessListener { result ->
 
                 val uid = result.user?.uid ?: return@addOnSuccessListener
+                val isNew = result.additionalUserInfo?.isNewUser == true
 
-                val guestProfile = UserData(isGuest = true)
+                if (isNew) {
+                    val user = hashMapOf(
+                        "name" to name,
+                        "email" to email,
+                        "phone" to result.user?.phoneNumber,
+                        "photoUrl" to result.user?.photoUrl?.toString()
+                    )
 
-                db.collection("users")
-                    .document(uid)
-                    .set(guestProfile)
-                    .addOnSuccessListener {
-                        profile = guestProfile
-                        onSuccess()
-                    }
-                    .addOnFailureListener { e ->
-                        Log.e("GUEST_LOGIN", "Firestore save failed", e)
-                    }
+                    db.collection("users").document(uid).set(user)
+                }
+
+                onComplete(true)
             }
             .addOnFailureListener { e ->
-                Log.e("GUEST_LOGIN", "Anonymous auth failed", e)
+                val msg = when (e) {
+                    is FirebaseAuthException -> e.message
+                    else -> "Google sign-in failed"
+                }
+                onComplete(false)
             }
     }
+    fun logout(onLoggedOut: () -> Unit) {
 
+        FirebaseAuth.getInstance().signOut()
 
-    fun isUserLoggedIn(): Boolean = auth.currentUser != null
-
-    fun logout() {
-        auth.signOut()
+        // Clear local profile state
         profile = UserData()
+        profileSaved = false
+
+        onLoggedOut()
     }
-
-    /* ---------------- PROFILE ---------------- */
-
-    fun loadUserProfile() {
-        val uid = auth.currentUser?.uid ?: return
-
-        db.collection("users").document(uid)
-            .get()
-            .addOnSuccessListener { doc ->
-                profile = UserData(
-                    name = doc.getString("name") ?: "User01",
-                    phone = doc.getString("phone"),
-                    email = doc.getString("email"),
-                    photoUrl = doc.getString("photoUrl"),
-                    isGuest = doc.getBoolean("isGuest") ?: false
-                )
-            }
+    fun clearProfileSavedFlag() {
+        profileSaved = false
     }
-
-    fun saveProfile(
-        updated: UserData,
+    fun saveNewUser(
+        name: String,
+        phone: String,
+        email: String?,
         imageUri: Uri?,
-        onSuccess: () -> Unit
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
     ) {
-        val uid = auth.currentUser?.uid ?: return
-        loading = true
+        val uid = auth.currentUser?.uid ?: return onError("User not logged in")
+
+        isLoading = true
 
         if (imageUri != null) {
-            val ref = storage.reference.child("profile_photos/$uid.jpg")
+
+            val ref = storage.reference.child("profile_images/$uid.jpg")
 
             ref.putFile(imageUri)
                 .continueWithTask { task ->
                     if (!task.isSuccessful) {
-                        task.exception?.let { throw it }
+                        throw task.exception ?: Exception("Upload failed")
                     }
                     ref.downloadUrl
                 }
                 .addOnSuccessListener { downloadUrl ->
-                    saveProfileData(
-                        updated.copy(photoUrl = downloadUrl.toString()),
-                        onSuccess
+
+                    val user = hashMapOf(
+                        "name" to name,
+                        "phone" to phone,
+                        "email" to email,
+                        "photoUrl" to downloadUrl.toString()
                     )
+
+                    db.collection("users")
+                        .document(uid)
+                        .set(user)
+                        .addOnSuccessListener {
+                            loadUserProfile()
+                            profileSaved = true
+                            isLoading = false
+                            onSuccess()
+                        }
+                        .addOnFailureListener {
+                            isLoading = false
+                            onError("Failed saving user data")
+                        }
+                }
+                .addOnFailureListener { e ->
+                    isLoading = false
+                    onError(e.message ?: "Image upload failed")
+                }
+
+        } else {
+
+            val user = hashMapOf(
+                "name" to name,
+                "phone" to phone,
+                "email" to email
+            )
+
+            db.collection("users")
+                .document(uid)
+                .set(user)
+                .addOnSuccessListener {
+                    loadUserProfile()
+                    profileSaved = true
+                    isLoading = false
+                    onSuccess()
                 }
                 .addOnFailureListener {
-                    loading = false
-                    error = it.message
+                    isLoading = false
+                    onError("Failed saving user data")
                 }
+        }
+    }
+
+
+    fun saveProfile(
+        updated: UserData,
+        imageUri: Uri?,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        val uid = auth.currentUser?.uid ?: return onError("User not logged in")
+
+        isLoading = true
+
+        if (imageUri != null) {
+
+            val ref = storage.reference.child("profile_images/$uid.jpg")
+
+            ref.putFile(imageUri)
+                .continueWithTask { task ->
+                    if (!task.isSuccessful) {
+                        throw task.exception ?: Exception("Upload failed")
+                    }
+                    ref.downloadUrl
+                }
+                .addOnSuccessListener { downloadUrl ->
+
+                    val newData = updated.copy(
+                        photoUrl = downloadUrl.toString()
+                    )
+
+                    updateFirestore(uid, newData, onSuccess, onError)
+                }
+                .addOnFailureListener {
+                    isLoading = false
+                    onError("Image upload failed")
+                }
+
         } else {
-            saveProfileData(updated, onSuccess)
-        }
-    }
-
-    private fun saveProfileData(updated: UserData, onSuccess: () -> Unit) {
-        val uid = auth.currentUser?.uid ?: return
-
-        db.collection("users").document(uid)
-            .set(updated, SetOptions.merge())
-            .addOnSuccessListener {
-                profile = updated
-                loading = false
-                profileSaved = true      // ✅ CONFIRMATION FLAG
-                onSuccess()
-            }
-            .addOnFailureListener {
-                loading = false
-                error = it.message
-            }
-    }
-
-    private val _isLoggedIn = mutableStateOf(false)
-    val isLoggedIn: State<Boolean> = _isLoggedIn
-
-    init {
-        auth.addAuthStateListener {
-            _isLoggedIn.value = it.currentUser != null
+            updateFirestore(uid, updated, onSuccess, onError)
         }
     }
 
 
-    fun clearProfileSavedFlag() {
-        profileSaved = false
-    }
-
+    fun isLoggedIn(): Boolean = auth.currentUser != null
 }

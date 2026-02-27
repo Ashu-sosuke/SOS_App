@@ -49,14 +49,8 @@ fun SafetySettingsScreen(
     var micSensitivity by remember { mutableFloatStateOf(0.75f) }
 
     // ✅ SHOW CONFIRMATION
-    LaunchedEffect(authViewModel.profileSaved) {
-        if (authViewModel.profileSaved) {
-            snackbarHostState.showSnackbar(
-                message = "Profile updated successfully ✅",
-                duration = SnackbarDuration.Short
-            )
-            authViewModel.clearProfileSavedFlag()
-        }
+    LaunchedEffect(Unit) {
+        authViewModel.loadUserProfile()
     }
 
     if (showEditProfile) {
@@ -70,9 +64,10 @@ fun SafetySettingsScreen(
         LogoutDialog(
             onConfirm = {
                 showLogoutDialog = false
-                authViewModel.logout()
-                navController.navigate(Routes.LOGIN) {
-                    popUpTo(0)
+                authViewModel.logout {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(0)
+                    }
                 }
             },
             onDismiss = { showLogoutDialog = false }

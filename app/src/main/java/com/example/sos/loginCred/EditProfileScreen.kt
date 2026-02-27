@@ -28,22 +28,28 @@ fun EditProfileDialog(
     onDismiss: () -> Unit
 ) {
     val profile = authViewModel.profile
+    val isLoading = authViewModel.isLoading
 
     var name by remember { mutableStateOf(profile.name) }
     var phone by remember { mutableStateOf(profile.phone ?: "") }
     var email by remember { mutableStateOf(profile.email ?: "") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val imagePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri -> imageUri = uri }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isLoading) onDismiss() },
         containerColor = Color(0xFF151E30),
         shape = RoundedCornerShape(20.dp),
         title = {
-            Text("Edit Profile", color = Color.White, fontWeight = FontWeight.SemiBold)
+            Text(
+                "Edit Profile",
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold
+            )
         },
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -54,7 +60,9 @@ fun EditProfileDialog(
                     modifier = Modifier
                         .size(90.dp)
                         .clip(CircleShape)
-                        .clickable { imagePicker.launch("image/*") },
+                        .clickable {
+                            if (!isLoading) imagePicker.launch("image/*")
+                        },
                     placeholder = painterResource(R.drawable.baseline_person_2_24),
                     error = painterResource(R.drawable.baseline_person_2_24)
                 )
@@ -63,7 +71,9 @@ fun EditProfileDialog(
                     "Change photo",
                     color = Color(0xFF4CAF50),
                     fontSize = 12.sp,
-                    modifier = Modifier.clickable { imagePicker.launch("image/*") }
+                    modifier = Modifier.clickable {
+                        if (!isLoading) imagePicker.launch("image/*")
+                    }
                 )
 
                 Spacer(Modifier.height(16.dp))
@@ -73,11 +83,7 @@ fun EditProfileDialog(
                     onValueChange = { name = it },
                     label = { Text("Name") },
                     singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        cursorColor = Color.White,
-                    )
+                    enabled = !isLoading
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -89,12 +95,7 @@ fun EditProfileDialog(
                         label = { Text("Phone") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            cursorColor = Color.White,
-                        )
-
+                        enabled = profile.phone == null && !isLoading,
                     )
                 }
 
@@ -105,17 +106,24 @@ fun EditProfileDialog(
                         label = { Text("Email") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            cursorColor = Color.White,
-                        )
+                        enabled = !isLoading
                     )
+                }
+
+                errorMessage?.let {
+                    Spacer(Modifier.height(8.dp))
+                    Text(it, color = Color.Red, fontSize = 12.sp)
+                }
+
+                if (isLoading) {
+                    Spacer(Modifier.height(12.dp))
+                    CircularProgressIndicator(color = Color(0xFF4CAF50))
                 }
             }
         },
         confirmButton = {
             TextButton(
+                enabled = !isLoading,
                 onClick = {
                     authViewModel.saveProfile(
                         updated = profile.copy(
@@ -123,17 +131,24 @@ fun EditProfileDialog(
                             phone = phone.ifBlank { profile.phone },
                             email = email.ifBlank { profile.email }
                         ),
-                        imageUri = imageUri
-                    ) {
-                        onDismiss()
-                    }
+                        imageUri = imageUri,
+                        onSuccess = {
+                            onDismiss()
+                        },
+                        onError = {
+                            errorMessage = it
+                        }
+                    )
                 }
             ) {
                 Text("Save", color = Color(0xFF4CAF50))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                enabled = !isLoading,
+                onClick = onDismiss
+            ) {
                 Text("Cancel", color = Color.Gray)
             }
         }

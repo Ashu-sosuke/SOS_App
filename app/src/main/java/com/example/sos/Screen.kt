@@ -11,8 +11,11 @@ sealed class Screen(val route: String) {
     object SafetySettingsScreen : Screen("settings")
 }
 
+
 object Routes {
     const val SPLASH = "splash"
     const val LOGIN = "login"
+    const val REGISTER = "register"
+    const val PERMISSION = "permission"
     const val HOME = "home"
 }

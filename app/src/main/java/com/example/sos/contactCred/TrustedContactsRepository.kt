@@ -1,6 +1,7 @@
 package com.example.sos.contactCred
 
 
+import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -13,6 +14,9 @@ class TrustedContactsRepository {
 
     fun listenContacts(onChange: (List<TrustedContact>) -> Unit) {
         val userId = uid() ?: return
+
+        Log.d("TrustedContacts", "listenContacts uid = $userId")
+
 
         db.collection("users")
             .document(userId)

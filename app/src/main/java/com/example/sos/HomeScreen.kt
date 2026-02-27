@@ -1,7 +1,12 @@
 package com.example.sos
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,7 +25,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.SegmentedButtonDefaults.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -32,16 +36,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.compose.rememberNavController
-import com.example.sos.utils.BottomNavBar
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.sos.modelCread.SosViewModel
+import com.example.sos.modelCread.SosViewModelFactory
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import com.google.android.gms.location.LocationServices
 
 
 @Composable
 fun HomeScreen() {
 
+    val context = LocalContext.current
     val systemUiController = rememberSystemUiController()
+
+    val viewModel: SosViewModel = viewModel(
+        factory = SosViewModelFactory(context)
+    )
 
     SideEffect {
         systemUiController.setStatusBarColor(
@@ -74,7 +91,7 @@ fun HomeScreen() {
             Spacer(modifier = Modifier.height(40.dp))
             TitleSection()
             Spacer(modifier = Modifier.height(40.dp))
-            SosButton()
+            SosButton(viewModel)
             Spacer(modifier = Modifier.height(32.dp))
             AIVoiceGuardCard()
         }
@@ -155,55 +172,96 @@ fun TitleSection() {
 }
 
 @Composable
-fun SosButton() {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .size(220.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(200.dp)
-                .background(
-                    color = Color(0x44FF3B3B),
-                    shape = CircleShape
-                )
-        )
+fun SosButton(viewModel: SosViewModel) {
 
-        Button(
-            onClick = { /* Trigger SOS */ },
-            shape = CircleShape,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFFF3B3B)
-            ),
-            modifier = Modifier.size(160.dp)
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = "SOS",
-                    tint = Color.White,
-                    modifier = Modifier.size(32.dp)
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "SOS",
-                    color = Color.White,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
+    val context = LocalContext.current
+    var loading by remember { mutableStateOf(false) }
+
+    val fusedLocationClient =
+        LocationServices.getFusedLocationProviderClient(context)
+
+    // 🔥 Define function FIRST
+    fun startSosFlow() {
+
+        fusedLocationClient.lastLocation
+            .addOnSuccessListener { location ->
+
+                if (location != null) {
+
+                    loading = true
+
+                    viewModel.triggerSos(
+                        latitude = location.latitude,
+                        longitude = location.longitude,
+                        onComplete = {
+                            loading = false
+                        }
+                    )
+
+                } else {
+                    loading = false
+                }
             }
+            .addOnFailureListener {
+                loading = false
+            }
+    }
+
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions()
+        ) { permissions ->
+
+            val granted = permissions.values.all { it }
+
+            if (granted) {
+                startSosFlow()
+            }
+        }
+
+    fun checkAndStart() {
+
+        val audioGranted =
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+
+        val locationGranted =
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+
+        if (audioGranted && locationGranted) {
+            startSosFlow()
+        } else {
+            permissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.RECORD_AUDIO,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                )
+            )
         }
     }
 
-    Spacer(modifier = Modifier.height(8.dp))
-
-    Text(
-        text = "Hold for 3 seconds to cancel accidental taps",
-        color = Color(0xFF6B7280),
-        fontSize = 12.sp
-    )
+    Button(
+        onClick = { checkAndStart() },
+        shape = CircleShape,
+        colors = ButtonDefaults.buttonColors(
+            containerColor =
+                if (loading) Color.Gray
+                else Color(0xFFFF3B3B)
+        ),
+        modifier = Modifier.size(160.dp)
+    ) {
+        Text(
+            text = if (loading) "PROCESSING..." else "SOS",
+            color = Color.White,
+        )
+    }
 }
+
 
 @Composable
 fun AIVoiceGuardCard() {

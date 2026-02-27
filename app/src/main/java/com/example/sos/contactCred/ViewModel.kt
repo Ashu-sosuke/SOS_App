@@ -1,5 +1,6 @@
 package com.example.sos.contactCred
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -15,19 +16,29 @@ class TrustedContactsViewModel : ViewModel() {
     val contacts: StateFlow<List<TrustedContact>> = _contacts
 
     init {
-        repo.listenContacts {
-            _contacts.value = it
+        FirebaseAuth.getInstance().addAuthStateListener { auth ->
+            auth.currentUser?.let {
+                repo.listenContacts { list ->
+                    _contacts.value = list
+                }
+            }
         }
     }
 
     fun addContact(name: String, phonePlain: String, relation: String) {
 
-        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val userId = FirebaseAuth.getInstance().currentUser?.uid
+        if (userId == null) {
+            Log.e("TrustedContacts", "User is null")
+            return
+        }
 
         val normalized = PhoneUtils.normalize(phonePlain)
         val phoneHash = CryptoManager.hash(normalized)
 
-        // Check duplicate in Firestore
+        Log.d("TrustedContacts", "Normalized: $normalized")
+        Log.d("TrustedContacts", "Hash: $phoneHash")
+
         FirebaseFirestore.getInstance()
             .collection("users")
             .document(userId)
@@ -36,8 +47,10 @@ class TrustedContactsViewModel : ViewModel() {
             .get()
             .addOnSuccessListener { snapshot ->
 
+                Log.d("TrustedContacts", "Duplicate check size: ${snapshot.size()}")
+
                 if (!snapshot.isEmpty) {
-                    println("Duplicate phone number detected")
+                    Log.d("TrustedContacts", "Duplicate detected")
                     return@addOnSuccessListener
                 }
 
@@ -55,6 +68,15 @@ class TrustedContactsViewModel : ViewModel() {
                     .collection("trusted_contacts")
                     .document(contact.id)
                     .set(contact)
+                    .addOnSuccessListener {
+                        Log.d("TrustedContacts", "Contact successfully written!")
+                    }
+                    .addOnFailureListener {
+                        Log.e("TrustedContacts", "Write failed: ${it.message}")
+                    }
+            }
+            .addOnFailureListener {
+                Log.e("TrustedContacts", "Duplicate check failed: ${it.message}")
             }
     }
 

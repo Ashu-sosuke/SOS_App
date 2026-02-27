@@ -31,7 +31,7 @@ fun SplashScreen(
     LaunchedEffect(Unit) {
         delay(1500)
 
-        if (authViewModel.isUserLoggedIn()) {
+        if (authViewModel.isLoggedIn()) {
             navController.navigate(Routes.HOME) {
                 popUpTo(Routes.SPLASH) { inclusive = true }
             }
