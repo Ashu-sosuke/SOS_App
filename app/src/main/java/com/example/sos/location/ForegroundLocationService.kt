@@ -6,24 +6,50 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.IBinder
-import android.util.Log
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import com.google.android.gms.location.*
 
 class ForegroundLocationService : Service() {
+
+    private lateinit var wakeLock: PowerManager.WakeLock
+
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var locationCallback: LocationCallback? = null
 
     override fun onCreate() {
         super.onCreate()
+
         fusedLocationClient =
             LocationServices.getFusedLocationProviderClient(this)
+
+        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+
+        wakeLock = powerManager.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "SOS:LocationWakeLock"
+        )
+
+        wakeLock.acquire()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        locationCallback?.let {
+            fusedLocationClient.removeLocationUpdates(it)
+        }
+
+        if (wakeLock.isHeld) {
+            wakeLock.release()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
 
         startForeground(1, createNotification())
+
         startLocationUpdates()
 
         return START_STICKY
@@ -36,11 +62,13 @@ class ForegroundLocationService : Service() {
         val channelId = "sos_location_channel"
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
             val channel = NotificationChannel(
                 channelId,
                 "SOS Live Location",
                 NotificationManager.IMPORTANCE_HIGH
             )
+
             getSystemService(NotificationManager::class.java)
                 .createNotificationChannel(channel)
         }
@@ -64,43 +92,63 @@ class ForegroundLocationService : Service() {
             return
         }
 
-        val locationRequest = LocationRequest.Builder(
+        val request = LocationRequest.Builder(
             Priority.PRIORITY_HIGH_ACCURACY,
-            4000L
-        ).build()
+            5000
+        )
+            .setMinUpdateIntervalMillis(3000)
+            .setWaitForAccurateLocation(true)
+            .build()
 
         locationCallback = object : LocationCallback() {
+
             override fun onLocationResult(result: LocationResult) {
-                result.lastLocation?.let { location ->
 
-                    Log.d("SOS_LOCATION", "Lat: ${location.latitude}, Lng: ${location.longitude}")
+                val location = result.lastLocation ?: return
 
+                val broadcastIntent =
+                    Intent(ACTION_SOS_LOCATION_UPDATE).apply {
 
-                    val broadcastIntent =
-                        Intent(ACTION_SOS_LOCATION_UPDATE).apply {
-                            setPackage(packageName)
-                            putExtra("latitude", location.latitude)
-                            putExtra("longitude", location.longitude)
-                            putExtra("accuracy", location.accuracy)
-                        }
+                        setPackage(packageName)
 
-                    sendBroadcast(broadcastIntent)
-                }
+                        putExtra("latitude", location.latitude)
+                        putExtra("longitude", location.longitude)
+                        putExtra("accuracy", location.accuracy)
+                    }
+
+                sendBroadcast(broadcastIntent)
             }
         }
 
         fusedLocationClient.requestLocationUpdates(
-            locationRequest,
+            request,
             locationCallback!!,
             mainLooper
         )
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
 
-    override fun onDestroy() {
-        super.onDestroy()
-        locationCallback?.let {
-            fusedLocationClient.removeLocationUpdates(it)
-        }
+        val restartIntent =
+            Intent(applicationContext, ForegroundLocationService::class.java)
+
+        restartIntent.setPackage(packageName)
+
+        val pendingIntent = PendingIntent.getService(
+            this,
+            1,
+            restartIntent,
+            PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
+
+        alarmManager.set(
+            AlarmManager.RTC_WAKEUP,
+            System.currentTimeMillis() + 2000,
+            pendingIntent
+        )
+
+        super.onTaskRemoved(rootIntent)
     }
 }

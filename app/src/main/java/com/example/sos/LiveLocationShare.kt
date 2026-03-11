@@ -21,6 +21,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,6 +36,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sos.location.LiveLocationMap
 import com.example.sos.location.SafetyModeViewModel
+import kotlinx.coroutines.delay
 
 
 @Composable
@@ -40,6 +44,16 @@ fun SafetyModeScreen(
     onBack: () -> Unit,
     viewModel: SafetyModeViewModel = viewModel()
 ) {
+
+    val startTime = remember { System.currentTimeMillis() }
+    var elapsed by remember { mutableStateOf(0L) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            elapsed = System.currentTimeMillis() - startTime
+            delay(1000)
+        }
+    }
     val background = Color(0xFF0B1220)
     val card = Color(0xFF151E30)
     val primaryBlue = Color(0xFF1F5EFF)
@@ -60,6 +74,9 @@ fun SafetyModeScreen(
                 viewModel.startSOSService()
             }
         }
+    val seconds = (elapsed / 1000) % 60
+    val minutes = (elapsed / 60000) % 60
+    val hours = elapsed / 3600000
 
     LaunchedEffect(Unit) {
 
@@ -223,7 +240,7 @@ fun SafetyModeScreen(
         // Buttons
         Button(
             onClick = {
-                viewModel.stopSOSService()
+                viewModel.stopSOS()
             },
             modifier = Modifier
                 .fillMaxWidth()

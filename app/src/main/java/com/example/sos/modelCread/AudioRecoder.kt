@@ -27,11 +27,14 @@ class AudioRecorder(private val context: Context) {
         return outputFile!!
     }
 
-    fun stopRecording() {
+    fun stopRecording(): File? {
+
         recorder?.apply {
             stop()
             release()
         }
+
         recorder = null
+        return outputFile
     }
 }

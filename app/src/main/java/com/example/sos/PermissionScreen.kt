@@ -50,7 +50,9 @@ fun PermissionScreen(navController: NavController) {
                     Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.ACCESS_COARSE_LOCATION,
                     Manifest.permission.READ_CONTACTS,
-                    Manifest.permission.RECORD_AUDIO
+                    Manifest.permission.RECORD_AUDIO,
+                    Manifest.permission.SEND_SMS
+
                 )
             )
         }) {

@@ -25,7 +25,6 @@ fun LiveLocationMap(
             LatLng(latitude, longitude)
         else null
 
-    // Animate camera when location changes
     LaunchedEffect(userLocation) {
         userLocation?.let {
             cameraPositionState.animate(

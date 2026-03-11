@@ -1,26 +1,36 @@
 {
   "project_info": {
-    "project_number": "319189704439",
-    "project_id": "sos-saftey",
-    "storage_bucket": "sos-saftey.firebasestorage.app"
+    "project_number": "153924360940",
+    "project_id": "astrasos-278a5",
+    "storage_bucket": "astrasos-278a5.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:319189704439:android:de94924742680a72747df2",
+        "mobilesdk_app_id": "1:153924360940:android:fdf5fdddedbc6075a5e3c9",
         "android_client_info": {
           "package_name": "com.example.sos"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "153924360940-rkiu6kdj9hkh2rm8ithg9aon33uaajc7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyB2OST37UwOpxW2Q5tVZALBitED23OB_kA"
+          "current_key": "AIzaSyCliwjsiHbF0bzyWEl1GEbew5FeuRGul2Q"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "153924360940-rkiu6kdj9hkh2rm8ithg9aon33uaajc7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

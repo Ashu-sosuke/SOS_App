@@ -4,7 +4,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
 
-    private const val BASE_URL = "https://sos-ai-service-413351495429.us-central1.run.app"
+    private const val BASE_URL = "http://10.216.7.7:8080"
 
     val api: AiApiService by lazy {
         retrofit2.Retrofit.Builder()

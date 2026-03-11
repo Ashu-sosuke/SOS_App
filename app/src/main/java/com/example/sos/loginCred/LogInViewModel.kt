@@ -294,7 +294,7 @@ class AuthViewModel : ViewModel() {
 
         if (imageUri != null) {
 
-            val ref = storage.reference.child("profile_images/$uid.jpg")
+            val ref = storage.reference.child("users/$uid/profile.jpg")
 
             ref.putFile(imageUri)
                 .continueWithTask { task ->

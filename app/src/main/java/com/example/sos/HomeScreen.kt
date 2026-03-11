@@ -44,8 +44,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.sos.location.SafetyModeViewModel
 import com.example.sos.modelCread.SosViewModel
 import com.example.sos.modelCread.SosViewModelFactory
+import com.example.sos.utils.getTrustedContacts
+import com.example.sos.utils.sendSosSms
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.google.android.gms.location.LocationServices
 
@@ -56,9 +59,11 @@ fun HomeScreen() {
     val context = LocalContext.current
     val systemUiController = rememberSystemUiController()
 
-    val viewModel: SosViewModel = viewModel(
+    val sosViewModel: SosViewModel = viewModel(
         factory = SosViewModelFactory(context)
     )
+
+    val safetyViewModel: SafetyModeViewModel = viewModel()
 
     SideEffect {
         systemUiController.setStatusBarColor(
@@ -91,7 +96,10 @@ fun HomeScreen() {
             Spacer(modifier = Modifier.height(40.dp))
             TitleSection()
             Spacer(modifier = Modifier.height(40.dp))
-            SosButton(viewModel)
+            SosButton(
+                sosViewModel = sosViewModel,
+                safetyViewModel = safetyViewModel
+            )
             Spacer(modifier = Modifier.height(32.dp))
             AIVoiceGuardCard()
         }
@@ -172,7 +180,7 @@ fun TitleSection() {
 }
 
 @Composable
-fun SosButton(viewModel: SosViewModel) {
+fun SosButton(sosViewModel: SosViewModel, safetyViewModel: SafetyModeViewModel) {
 
     val context = LocalContext.current
     var loading by remember { mutableStateOf(false) }
@@ -183,6 +191,8 @@ fun SosButton(viewModel: SosViewModel) {
     // 🔥 Define function FIRST
     fun startSosFlow() {
 
+        val incidentId = safetyViewModel.startSOS()
+
         fusedLocationClient.lastLocation
             .addOnSuccessListener { location ->
 
@@ -190,9 +200,31 @@ fun SosButton(viewModel: SosViewModel) {
 
                     loading = true
 
-                    viewModel.triggerSos(
-                        latitude = location.latitude,
-                        longitude = location.longitude,
+                    val lat = location.latitude
+                    val lng = location.longitude
+
+                    val trackingLink =
+                        "https://astra-sos.web.app/live.html?incident=$incidentId"
+
+                    getTrustedContacts { contacts ->
+
+                        contacts.forEach { phone ->
+
+                            sendSosSms(
+                                phone = phone,
+                                latitude = lat,
+                                longitude = lng,
+                                link = trackingLink
+                            )
+
+                        }
+
+                    }
+
+                    sosViewModel.triggerSos(
+                        incidentId = incidentId,
+                        latitude = lat,
+                        longitude = lng,
                         onComplete = {
                             loading = false
                         }
@@ -258,6 +290,7 @@ fun SosButton(viewModel: SosViewModel) {
         Text(
             text = if (loading) "PROCESSING..." else "SOS",
             color = Color.White,
+            fontWeight = FontWeight.Bold
         )
     }
 }
